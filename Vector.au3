@@ -325,7 +325,7 @@ Func __Vector_Member_size($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispPa
     Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
     If $tDispParams.cArgs <> 0 Then Return $__g_Vector_DISP_E_BADPARAMCOUNT
     Local $pObject = $pSelf-8
-    $tVariant = DllStructCreate($__g_Vector_tagVARIANT, $pVarResult)
+    Local $tVariant = DllStructCreate($__g_Vector_tagVARIANT, $pVarResult)
     $tVariant.vt = $__g_Vector_VT_UI4
     DllStructSetData(DllStructCreate("UINT", DllStructGetPtr($tVariant, "data")), 1, __Vector_size($pObject))
     Return $__g_Vector_S_OK
