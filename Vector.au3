@@ -390,6 +390,22 @@ Func __Vector_resize($vObject, $iNewSize)
     $tObject.Size = $iNewSize
 EndFunc
 
+Func __Vector_Member_capacity($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
+    If Not __Vector_Flags_HasFlag($wFlags, $__g_Vector_DISPATCH_PROPERTYGET) Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+    Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
+    If $tDispParams.cArgs <> 0 Then Return $__g_Vector_DISP_E_BADPARAMCOUNT
+    Local $pObject = $pSelf-8
+    Local $tVariant = DllStructCreate($__g_Vector_tagVARIANT, $pVarResult)
+    $tVariant.vt = $__g_Vector_VT_UI4
+    DllStructSetData(DllStructCreate("UINT", DllStructGetPtr($tVariant, "data")), 1, __Vector_capacity($pObject))
+    Return $__g_Vector_S_OK
+EndFunc
+
+Func __Vector_capacity($vObject)
+    Local $tObject = IsDllStruct($vObject) ? $vObject : DllStructCreate($__g_Vector_tagObject, $vObject)
+    Return $tObject.Capacity
+EndFunc
+
 Func __Vector_Member_reserve($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
     Local $pObject = $pSelf-8
     Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
