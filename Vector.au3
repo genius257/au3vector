@@ -39,6 +39,7 @@ Global Const $__g_Vector_DISP_E_BADCALLEE = 0x80020010
 Global Const $__g_Vector_DISP_E_NOTACOLLECTION = 0x80020011
 
 Global Const $__g_Vector_tagVARIANT = "ushort vt;ushort r1;ushort r2;ushort r3;PTR data" & (@AutoItX64 ? "" : ";PTR data2")
+Global Const $__g_Vector_cVARIANT = DllStructGetSize(DllStructCreate($__g_Vector_tagVARIANT))
 
 Global Enum $__g_Vector_VT_EMPTY,$__g_Vector_VT_NULL,$__g_Vector_VT_I2,$__g_Vector_VT_I4,$__g_Vector_VT_R4,$__g_Vector_VT_R8,$__g_Vector_VT_CY,$__g_Vector_VT_DATE,$__g_Vector_VT_BSTR,$__g_Vector_VT_DISPATCH, _
     $__g_Vector_VT_ERROR,$__g_Vector_VT_BOOL,$__g_Vector_VT_VARIANT,$__g_Vector_VT_UNKNOWN,$__g_Vector_VT_DECIMAL,$__g_Vector_VT_I1=16,$__g_Vector_VT_UI1,$__g_Vector_VT_UI2,$__g_Vector_VT_UI4,$__g_Vector_VT_I8, _
@@ -91,7 +92,6 @@ EndFunc
 Func __Vector_QueryInterface($pSelf, $pRIID, $pObj)
     If $pObj=0 Then Return $__g_Vector_E_POINTER
     Local $sGUID=DllCall("ole32.dll", "int", "StringFromGUID2", "PTR", $pRIID, "wstr", "", "int", 40)[2]
-    ConsoleWrite($sGUID&@CRLF)
     If (Not ($sGUID=$__g_Vector_IID_IDispatch)) And (Not ($sGUID=$__g_Vector_IID_IUnknown)) Then Return $__g_Vector_E_NOINTERFACE
     Local $tStruct = DllStructCreate("ptr", $pObj)
     DllStructSetData($tStruct, 1, $pSelf)
@@ -356,11 +356,10 @@ Func __Vector_resize($vObject, $iNewSize)
     Local $tObject = IsDllStruct($vObject) ? $vObject : DllStructCreate($__g_Vector_tagObject, $vObject)
     Local $iSize = $tObject.Size
     Local $tData = DllStructCreate(StringFormat("PTR[%d]", $iSize), $tObject.Data)
-    ConsoleWrite("X"&@CRLF)
     If $iNewSize < $iSize Then
         For $i = $iSize To $iNewSize + 1 Step -1
-            ;ConsoleWrite($i&@CRLF)
-            If __Vector_VariantClear(DllStructGetData($tData, 1, $i)) <> $__g_Vector_S_OK Then Return $__g_Vector_DISP_E_EXCEPTION;TODO create exception object?
+            If __Vector_VariantClear(DllStructGetData($tData, 1, $i)) <> $__g_Vector_S_OK Then Return SetError(1, 0, Null)
+            __Vector_DllStructFree(DllStructGetData($tData, 1, $i))
         Next
     ElseIf $iNewSize > $iSize Then
         If $iNewSize > $tObject.Capacity Then __Vector_reserve($vObject, $iNewSize);FIXME: check what the expected new capacity should be.
@@ -368,13 +367,11 @@ Func __Vector_resize($vObject, $iNewSize)
         If @error <> 0 Then Return SetError(@error, @extended, Null)
         $tData = DllStructCreate(StringFormat("PTR[%d]", $iNewSize), $tObject.Data)
         For $i = $iSize + 1 To $iNewSize Step +1
-            ConsoleWrite($i&@CRLF)
-            ;ConsoleWrite($i&@CRLF)
-            DllStructSetData($tData, 1, __Vector_VariantInit(), $i)
-            ConsoleWrite(DllStructGetData($tData, 1, $i)&@CRLF)
+            Local $tVARIANT = __Vector_DllStructAlloc($__g_Vector_tagVARIANT)
+            __Vector_VariantInit($tVARIANT)
+            DllStructSetData($tData, 1, DllStructGetPtr($tVARIANT), $i)
         Next
     EndIf
-    ConsoleWrite("Z"&@CRLF)
     $tObject.Size = $iNewSize
 EndFunc
 
@@ -414,8 +411,8 @@ Func __Vector_reserve($vObject, $iNewCapacity)
     $tObject.Capacity = $iNewCapacity
 EndFunc
 
-Func __Vector_VariantInit()
-    Return DllCall("OleAut32.dll", "NONE", "VariantInit", "PTR*", 0)[1]
+Func __Vector_VariantInit($pvarg)
+    Return DllCall("OleAut32.dll", "NONE", "VariantInit", IsDllStruct($pvarg) ? "STRUCT*" : "PTR", $pvarg)[1]
 EndFunc
 
 Func __Vector_VariantClear($pVARIANT)
