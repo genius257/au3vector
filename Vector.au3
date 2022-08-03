@@ -265,8 +265,8 @@ Func __Vector_Invoke($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams,
 
         ;Case $__g_Vector_Member_assign
         ;    Return __Vector_Member_assign($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
-        ;Case $__g_Vector_Member_push_back
-        ;    Return __Vector_Member_push_back($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
+        Case $__g_Vector_Member_push_back
+            Return __Vector_Member_push_back($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
         ;Case $__g_Vector_Member_pop_back
         ;    Return __Vector_Member_pop_back($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
         ;Case $__g_Vector_Member_insert
@@ -406,6 +406,14 @@ Func __Vector_capacity($vObject)
     Return $tObject.Capacity
 EndFunc
 
+Func __Vector_Member_empty($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
+    ;FIXME
+EndFunc
+
+Func __Vector_empty($vObject)
+    Local $tObject = IsDllStruct($vObject) ? $vObject : DllStructCreate($__g_Vector_tagObject, $vObject)
+EndFunc
+
 Func __Vector_Member_reserve($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
     Local $pObject = $pSelf-8
     Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
@@ -442,6 +450,88 @@ Func __Vector_reserve($vObject, $iNewCapacity)
     $tObject.Capacity = $iNewCapacity
 EndFunc
 
+Func __Vector_Member_shrink_to_fit($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
+    If Not __Vector_Flags_HasFlag($wFlags, $__g_Vector_DISPATCH_PROPERTYGET) Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+    Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
+    If $tDispParams.cArgs <> 0 Then Return $__g_Vector_DISP_E_BADPARAMCOUNT
+    Local $pObject = $pSelf-8
+    Local $tVariant = DllStructCreate($__g_Vector_tagVARIANT, $pVarResult)
+    $tVariant.vt = $__g_Vector_VT_EMPTY
+    __Vector_shrink_to_fit($pObject)
+    If @error <> 0 Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+    Return $__g_Vector_S_OK
+EndFunc
+
+Func __Vector_shrink_to_fit($vObject)
+    Local $tObject = IsDllStruct($vObject) ? $vObject : DllStructCreate($__g_Vector_tagObject, $vObject)
+    __Vector_reserve($vObject, $tObject.Size)
+    Return SetError(@error, @extended, Null)
+EndFunc
+
+Func __Vector_Member_at($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
+    If Not __Vector_Flags_HasFlag($wFlags, $__g_Vector_DISPATCH_PROPERTYGET) Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+    Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
+    Local $pObject = $pSelf-8
+    Switch $tDispParams.cArgs
+        Case 1
+            Local $tVariant = DllStructCreate($__g_Vector_tagVARIANT, $tDispParams.rgvargs)
+            If Not $tVariant.vt = $__g_Vector_VT_I4 Then
+                $tuArgErr = DllStructCreate("UINT", $puArgErr)
+                DllStructSetData($tuArgErr, 1, 1)
+                Return $__g_Vector_DISP_E_TYPEMISMATCH
+            EndIf
+            Local $iIndex = DllStructGetData(DllStructCreate('INT', DllStructGetPtr($tVariant, 'data')), 1)
+            Local $pVariant = __Vector_at($pObject, $iIndex)
+            __Vector_VariantCopy($pVarResult, $pVariant)
+            If @error <> 0 Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+            Return $__g_Vector_S_OK
+        Case 2
+            Local $tVariant = DllStructCreate($__g_Vector_tagVARIANT, $tDispParams.rgvargs+$__g_Vector_cVARIANT)
+            If Not $tVariant.vt = $__g_Vector_VT_I4 Then
+                $tuArgErr = DllStructCreate("UINT", $puArgErr)
+                DllStructSetData($tuArgErr, 1, 1)
+                Return $__g_Vector_DISP_E_TYPEMISMATCH
+            EndIf
+            Local $iIndex = DllStructGetData(DllStructCreate('INT', DllStructGetPtr($tVariant, 'data')), 1)
+            __Vector_at($pObject, $iIndex, $tDispParams.rgvargs)
+            If @error <> 0 Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+            Return $__g_Vector_S_OK
+        Case Else
+            Return $__g_Vector_DISP_E_BADPARAMCOUNT
+    EndSwitch
+EndFunc
+
+Func __Vector_at($vObject, $iIndex, $pVariant = Null)
+    $iIndex += 1; Change from 0-based index to 1-based index
+    Local $tObject = IsDllStruct($vObject) ? $vObject : DllStructCreate($__g_Vector_tagObject, $vObject)
+    If $iIndex > $tObject.Size Then
+        If $pVariant = Null Then Return SetError(1, 0, Null)
+        __Vector_resize($vObject, $iIndex)
+        If @error <> 0 Then Return SetError(@error, @extended, Null)
+    EndIf
+    $tData = DllStructCreate(StringFormat("PTR[%d]", $tObject.Size), $tObject.Data)
+    If $pVariant = Null Then Return DllStructGetData($tData, 1, $iIndex)
+    ;FIXME: check if VariantClear and VariantInit should be called on destination first!
+    If __Vector_VariantCopy(DllStructGetData($tData, 1, $iIndex), $pVariant) <> $__g_Vector_S_OK Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+    Return $__g_Vector_S_OK
+EndFunc
+
+Func __Vector_Member_push_back($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
+    If Not __Vector_Flags_HasFlag($wFlags, $__g_Vector_DISPATCH_PROPERTYGET) Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+    Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
+    Local $pObject = $pSelf-8
+    Local $tObject = DllStructCreate($__g_Vector_tagObject, $pObject)
+    If $tDispParams.cArgs <> 1 Then Return $__g_Vector_DISP_E_BADPARAMCOUNT
+    __Vector_at($pObject, $tObject.Size + 1, $tDispParams.rgvargs)
+EndFunc
+
+Func __Vector_push_back($vObject, $pVariant)
+    Local $tObject = IsDllStruct($vObject) ? $vObject : DllStructCreate($__g_Vector_tagObject, $vObject)
+    Local $iCapacity = $tObject.Capacity
+    If $tObject.Size = $iCapacity Then __Vector_reserve($vObject, $iCapacity = 0 ? 16 : $iCapacity * 2)
+    __Vector_at($vObject, $tObject.Size + 1, $pVariant)
+EndFunc
+
 Func __Vector_VariantInit($pvarg)
     Return DllCall("OleAut32.dll", "NONE", "VariantInit", IsDllStruct($pvarg) ? "STRUCT*" : "PTR", $pvarg)[1]
 EndFunc
@@ -450,6 +540,6 @@ Func __Vector_VariantClear($pVARIANT)
     Return DllCall("OleAut32.dll", "LONG", "VariantClear", "PTR", $pVARIANT)[0]
 EndFunc
 
-Func __Vector_VariantCopy()
-    ;FIXME
+Func __Vector_VariantCopy($pvargDest, $pvargSrc)
+    Return DllCall("OleAut32.dll", "LONG", "VariantCopy", "PTR", $pvargDest, "PTR", $pvargSrc)[0]
 EndFunc
