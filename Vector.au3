@@ -1,3 +1,4 @@
+#include-once
 #include <Memory.au3>
 #include <WinAPIMisc.au3>
 
