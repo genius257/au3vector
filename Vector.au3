@@ -408,11 +408,19 @@ Func __Vector_capacity($vObject)
 EndFunc
 
 Func __Vector_Member_empty($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
-    ;FIXME
+    If Not __Vector_Flags_HasFlag($wFlags, $__g_Vector_DISPATCH_PROPERTYGET) Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+    Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
+    If $tDispParams.cArgs <> 0 Then Return $__g_Vector_DISP_E_BADPARAMCOUNT
+    Local $pObject = $pSelf-8
+    Local $tVariant = DllStructCreate($__g_Vector_tagVARIANT, $pVarResult)
+    $tVariant.vt = $__g_Vector_VT_BOOL
+    DllStructSetData(DllStructCreate("BOOL", DllStructGetPtr($tVariant, "data")), 1, __Vector_empty($pObject))
+    Return $__g_Vector_S_OK
 EndFunc
 
 Func __Vector_empty($vObject)
     Local $tObject = IsDllStruct($vObject) ? $vObject : DllStructCreate($__g_Vector_tagObject, $vObject)
+    Return $tObject.Size = 0
 EndFunc
 
 Func __Vector_Member_reserve($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
