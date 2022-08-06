@@ -257,8 +257,8 @@ Func __Vector_Invoke($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams,
 
         Case $__g_Vector_Member_at
             Return __Vector_Member_at($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
-        ;Case $__g_Vector_Member_front
-        ;    Return __Vector_Member_front($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
+        Case $__g_Vector_Member_front
+            Return __Vector_Member_front($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
         ;Case $__g_Vector_Member_back
         ;    Return __Vector_Member_back($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
         ;Case $__g_Vector_Member_data
@@ -523,6 +523,20 @@ Func __Vector_at($vObject, $iIndex, $pVariant = Null)
     ;FIXME: check if VariantClear and VariantInit should be called on destination first!
     If __Vector_VariantCopy(DllStructGetData($tData, 1, $iIndex), $pVariant) <> $__g_Vector_S_OK Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
     Return $__g_Vector_S_OK
+EndFunc
+
+Func __Vector_Member_front($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
+    If Not __Vector_Flags_HasFlag($wFlags, $__g_Vector_DISPATCH_PROPERTYGET) Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
+    Local $tDispParams = DllStructCreate($__g_Vector_tagDISPPARAMS, $pDispParams)
+    If $tDispParams.cArgs <> 0 Then Return $__g_Vector_DISP_E_BADPARAMCOUNT
+    Local $pObject = $pSelf-8
+    __Vector_VariantCopy($pVarResult, __Vector_front($pObject))
+    Return $__g_Vector_S_OK
+EndFunc
+
+Func __Vector_front($vObject)
+    Local $tObject = IsDllStruct($vObject) ? $vObject : DllStructCreate($__g_Vector_tagObject, $vObject)
+    Return DllStructGetData(DllStructCreate("PTR", $tObject.Data), 1)
 EndFunc
 
 Func __Vector_Member_push_back($pSelf, $dispIdMember, $riid, $lcid, $wFlags, $pDispParams, $pVarResult, $pExcepInfo, $puArgErr)
