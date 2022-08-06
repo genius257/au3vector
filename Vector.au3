@@ -518,7 +518,7 @@ Func __Vector_at($vObject, $iIndex, $pVariant = Null)
         __Vector_resize($vObject, $iIndex)
         If @error <> 0 Then Return SetError(@error, @extended, Null)
     EndIf
-    $tData = DllStructCreate(StringFormat("PTR[%d]", $tObject.Size), $tObject.Data)
+    Local $tData = DllStructCreate(StringFormat("PTR[%d]", $tObject.Size), $tObject.Data)
     If $pVariant = Null Then Return DllStructGetData($tData, 1, $iIndex)
     ;FIXME: check if VariantClear and VariantInit should be called on destination first!
     If __Vector_VariantCopy(DllStructGetData($tData, 1, $iIndex), $pVariant) <> $__g_Vector_S_OK Then Return $__g_Vector_DISP_E_EXCEPTION;TODO: create exception object?
